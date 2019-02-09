@@ -1,2 +1,2 @@
 # curd-generator
-help to build CURD project with RESTful style service
+help to build CRUD project with RESTful style service
