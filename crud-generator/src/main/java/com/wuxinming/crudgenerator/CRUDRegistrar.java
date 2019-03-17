@@ -17,6 +17,7 @@ import org.springframework.core.type.classreading.AnnotationMetadataReadingVisit
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 
+import java.lang.reflect.Method;
 import java.util.*;
 
 public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoaderAware,Opcodes {
@@ -53,19 +54,25 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
             Set<BeanDefinitionHolder> bdhs = scanner.doScan(new String[]{basePackage});
             for (BeanDefinitionHolder bdh : bdhs) {
                 String className = bdh.getBeanDefinition().getBeanClassName();
+                try {
+                    if(!types.containsKey(className+DAO_SUFFIX))
+                        daoRegistry(registry, bdh);
 
-                if(!types.containsKey(className+DAO_SUFFIX))
-                    daoRegistry(registry, bdh);
+                    if(!types.containsKey(className+SERVICE_SUFFIX))
+                        serviceRegistry(registry,bdh);
 
-                if(!types.containsKey(className+SERVICE_SUFFIX))
-                    serviceRegistry(registry,bdh);
-
-                if(!types.containsKey(className+CONTROLLER_SUFFIX))
-                    controllerRegistry(registry,bdh,basePackage);
-                else{
-                    BeanDefinition beanDefinition = registry.getBeanDefinition(types.get(className+CONTROLLER_SUFFIX));
-                    beanDefinition.setAttribute("basePackage",basePackage);
+                    if(!types.containsKey(className+CONTROLLER_SUFFIX))
+                        controllerRegistry(registry,bdh,basePackage);
+                    else{
+                        BeanDefinition beanDefinition = registry.getBeanDefinition(types.get(className+CONTROLLER_SUFFIX));
+                        beanDefinition.setAttribute("basePackage",basePackage);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
+
+
+
             }
         }
     }
@@ -89,7 +96,7 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
         return types;
     }
 
-    private void daoRegistry(BeanDefinitionRegistry registry, BeanDefinitionHolder bdh) {
+    private void daoRegistry(BeanDefinitionRegistry registry, BeanDefinitionHolder bdh) throws Exception {
         GenericBeanDefinition beanDefinition = new GenericBeanDefinition();
         beanDefinition.setBeanClass(mapperFactoryBean.getClass());
         beanDefinition.getConstructorArgumentValues().addGenericArgumentValue(generatorDAOClass(bdh.getBeanDefinition().getBeanClassName()));
@@ -97,7 +104,7 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
         registry.registerBeanDefinition(bdh.getBeanDefinition().getBeanClassName()+DAO_SUFFIX,beanDefinition);
     }
 
-    private void serviceRegistry(BeanDefinitionRegistry registry, BeanDefinitionHolder bdh) {
+    private void serviceRegistry(BeanDefinitionRegistry registry, BeanDefinitionHolder bdh) throws Exception{
         GenericBeanDefinition beanDefinition = new GenericBeanDefinition();
         Class serviceClass = generatorServiceClass(bdh.getBeanDefinition().getBeanClassName());
         beanDefinition.setBeanClass(serviceClass);
@@ -105,7 +112,7 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
         registry.registerBeanDefinition(bdh.getBeanDefinition().getBeanClassName()+SERVICE_SUFFIX,beanDefinition);
     }
 
-    private void controllerRegistry(BeanDefinitionRegistry registry, BeanDefinitionHolder bdh,String basePackage) {
+    private void controllerRegistry(BeanDefinitionRegistry registry, BeanDefinitionHolder bdh,String basePackage) throws Exception {
         GenericBeanDefinition beanDefinition = new GenericBeanDefinition();
         beanDefinition.setAttribute("basePackage",basePackage);
 
@@ -115,7 +122,7 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
         registry.registerBeanDefinition(bdh.getBeanDefinition().getBeanClassName()+CONTROLLER_SUFFIX,beanDefinition);
     }
 
-    private Class generatorDAOClass(String className){
+    private Class generatorDAOClass(String className) throws Exception{
         String slashClassName = className.replace(".","/");
         String slashBaseMapperCN = "com/baomidou/mybatisplus/core/mapper/BaseMapper";
         ClassWriter cw = new ClassWriter(0);
@@ -126,12 +133,23 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
                 "java/lang/Object", new String[] { slashBaseMapperCN });
         cw.visitEnd();
         byte[] bytes = cw.toByteArray();
-        ChildClassLoader classLoader = new ChildClassLoader();
-        Class daoClass = classLoader.defineClass(className+DAO_SUFFIX,bytes);
-        return daoClass;
+        return generatorClass(className+DAO_SUFFIX, bytes);
     }
 
-    private Class generatorServiceClass(String className){
+    private Method defineClassMothod;
+
+    private Class generatorClass(String className, byte[] bytes) throws Exception{
+            Class[] classes = new Class[]{String.class,byte[].class,int.class,int.class};
+            ClassLoader classLoader = this.getClass().getClassLoader();
+            if(defineClassMothod ==null){
+                defineClassMothod = ClassLoader.class.getDeclaredMethod("defineClass",classes);
+                defineClassMothod.setAccessible(true);
+            }
+            Class daoClass = (Class) defineClassMothod.invoke(classLoader,new Object[]{className,bytes,0,bytes.length});
+            return daoClass;
+    }
+
+    private Class generatorServiceClass(String className) throws Exception{
         String slashClassName = className.replace(".","/");
         String slashServiceCN = "com/wuxinming/crudgenerator/CRUDServiceImpl";
         ClassWriter classWriter = new ClassWriter(0);
@@ -158,12 +176,11 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
         methodVisitor.visitEnd();
 
         classWriter.visitEnd();
-        ChildClassLoader classLoader = new ChildClassLoader();
-        Class serviceClass = classLoader.defineClass(className+SERVICE_SUFFIX,classWriter.toByteArray());
+        Class serviceClass = generatorClass(className+SERVICE_SUFFIX,classWriter.toByteArray());
         return serviceClass;
     }
 
-    private Class generatorControllerClass(String className,String modulePath){
+    private Class generatorControllerClass(String className,String modulePath) throws Exception{
         String slashClassName = className.replace(".","/");
         String slashControllerCN = "com/wuxinming/crudgenerator/CRUDControllerImpl";
         ClassWriter classWriter = new ClassWriter(0);
@@ -208,8 +225,7 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
         }
         classWriter.visitEnd();
 
-    ChildClassLoader classLoader = new ChildClassLoader();
-        Class controllerClass = classLoader.defineClass(className+CONTROLLER_SUFFIX,classWriter.toByteArray());
+        Class controllerClass = generatorClass(className+CONTROLLER_SUFFIX,classWriter.toByteArray());
         return controllerClass;
     }
 
