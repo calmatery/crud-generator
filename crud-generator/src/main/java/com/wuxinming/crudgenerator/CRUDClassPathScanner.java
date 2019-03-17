@@ -8,7 +8,7 @@ import org.springframework.core.type.classreading.MetadataReader;
 import java.io.IOException;
 import java.util.Set;
 
-public class CRUDClassPathScanner extends ClassPathBeanDefinitionScanner{
+public class CRUDClassPathScanner extends ClassPathBeanDefinitionScanner {
 
     public CRUDClassPathScanner(BeanDefinitionRegistry registry) {
         super(registry, false);
@@ -28,7 +28,5 @@ public class CRUDClassPathScanner extends ClassPathBeanDefinitionScanner{
     @Override
     protected void registerBeanDefinition(BeanDefinitionHolder definitionHolder, BeanDefinitionRegistry registry) {
     }
-
-
 
 }

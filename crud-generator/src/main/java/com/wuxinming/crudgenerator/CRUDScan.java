@@ -9,5 +9,5 @@ import java.lang.annotation.*;
 @Documented
 @Import(CRUDRegistrar.class)
 public @interface CRUDScan {
-    String[] value() default{} ;
+    String[] value() default {};
 }
