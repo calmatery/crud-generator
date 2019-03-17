@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wuxinming.demo.p1.Test3DAO">
+
+    <select id="ttt" resultType="java.util.HashMap">
+        select 22 as c1 from dual
+    </select>
+</mapper>
