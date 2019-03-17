@@ -30,9 +30,12 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
     public void setResourceLoader(ResourceLoader resourceLoader) {
     }
 
+    public static BeanDefinitionRegistry registry;
+
     @Override
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
-        Set<String> types = generatorExistClasses(registry);
+        this.registry = registry;
+        Map<String,String> types = generatorExistClasses(registry);
 
         AnnotationAttributes annoAttrs = AnnotationAttributes.fromMap(importingClassMetadata.getAnnotationAttributes(CRUDScan.class.getName()));
         if(annoAttrs==null)
@@ -46,34 +49,40 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
             }
         }
 
-        Set<BeanDefinitionHolder> bdhs = scanner.doScan(StringUtils.toStringArray(basePackages));
-        for (BeanDefinitionHolder bdh : bdhs) {
-            String className = bdh.getBeanDefinition().getBeanClassName();
+        for (String basePackage : basePackages) {
+            Set<BeanDefinitionHolder> bdhs = scanner.doScan(new String[]{basePackage});
+            for (BeanDefinitionHolder bdh : bdhs) {
+                String className = bdh.getBeanDefinition().getBeanClassName();
 
-            if(!types.contains(className+DAO_SUFFIX))
-                daoRegistry(registry, bdh);
+                if(!types.containsKey(className+DAO_SUFFIX))
+                    daoRegistry(registry, bdh);
 
-            if(!types.contains(className+SERVICE_SUFFIX))
-                serviceRegistry(registry,bdh);
+                if(!types.containsKey(className+SERVICE_SUFFIX))
+                    serviceRegistry(registry,bdh);
 
-            if(!types.contains(className+CONTROLLER_SUFFIX))
-                controllerRegistry(registry,bdh);
+                if(!types.containsKey(className+CONTROLLER_SUFFIX))
+                    controllerRegistry(registry,bdh,basePackage);
+                else{
+                    BeanDefinition beanDefinition = registry.getBeanDefinition(types.get(className+CONTROLLER_SUFFIX));
+                    beanDefinition.setAttribute("basePackage",basePackage);
+                }
+            }
         }
     }
 
-    private Set<String> generatorExistClasses(BeanDefinitionRegistry registry) {
-        Set<String> types = new HashSet<>();
+    private Map<String,String> generatorExistClasses(BeanDefinitionRegistry registry) {
+        Map<String,String> types = new HashMap<>();
         for (String name : registry.getBeanDefinitionNames()) {
             BeanDefinition bd = registry.getBeanDefinition(name);
             if(bd.getBeanClassName()!=null){
                 if(bd.getBeanClassName().equals("org.mybatis.spring.mapper.MapperFactoryBean"))    {
                     String metaDataClass=((ScannedGenericBeanDefinition)bd).getMetadata().getClassName();
                     if(metaDataClass!=null){
-                        types.add(metaDataClass);
+                        types.put(metaDataClass,name);
                     }
                 }
                 else {
-                    types.add(bd.getBeanClassName());
+                    types.put(bd.getBeanClassName(),name);
                 }
             }
         }
@@ -96,9 +105,11 @@ public class CRUDRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoa
         registry.registerBeanDefinition(bdh.getBeanDefinition().getBeanClassName()+SERVICE_SUFFIX,beanDefinition);
     }
 
-    private void controllerRegistry(BeanDefinitionRegistry registry, BeanDefinitionHolder bdh) {
+    private void controllerRegistry(BeanDefinitionRegistry registry, BeanDefinitionHolder bdh,String basePackage) {
         GenericBeanDefinition beanDefinition = new GenericBeanDefinition();
-        Class controllerClass = generatorControllerClass(bdh.getBeanDefinition().getBeanClassName(),"");
+        beanDefinition.setAttribute("basePackage",basePackage);
+
+        Class controllerClass = generatorControllerClass(bdh.getBeanDefinition().getBeanClassName(),CRUDControllerImpl.MODULE_PATH);
         beanDefinition.setBeanClass(controllerClass);
         beanDefinition.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_BY_TYPE);
         registry.registerBeanDefinition(bdh.getBeanDefinition().getBeanClassName()+CONTROLLER_SUFFIX,beanDefinition);

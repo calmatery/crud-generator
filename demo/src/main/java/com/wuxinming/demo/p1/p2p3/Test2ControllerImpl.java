@@ -1,11 +1,10 @@
-package com.wuxinming.demo;
+package com.wuxinming.demo.p1.p2p3;
 
 import com.wuxinming.crudgenerator.CRUDControllerImpl;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("ttt")
+//@RequestMapping("ttt")
 public class Test2ControllerImpl extends CRUDControllerImpl<Test2>{
 
 

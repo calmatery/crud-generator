@@ -28,4 +28,7 @@ public class CRUDClassPathScanner extends ClassPathBeanDefinitionScanner{
     @Override
     protected void registerBeanDefinition(BeanDefinitionHolder definitionHolder, BeanDefinitionRegistry registry) {
     }
+
+
+
 }

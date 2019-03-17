@@ -7,10 +7,13 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 import java.io.Serializable;
 import java.util.List;
-@RequestMapping("[module-path]")
+import static com.wuxinming.crudgenerator.CRUDControllerImpl.MODULE_PATH;
+
+@RequestMapping(value = MODULE_PATH)
 public class CRUDControllerImpl<T> implements CRUDController<T>{
 
     public static final String CRUD_ITEM_PATH="[curd-item-path]";
+    public static final String MODULE_PATH="[module-path]";
 
     @Autowired
     protected CRUDService<T> crudService;
